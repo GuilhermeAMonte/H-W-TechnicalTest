@@ -1,0 +1,40 @@
+# docker-compose.yml — Lab Red+Blue (H&W)
+# CASCA (Stage 0). Serviços entram nas stages 1→4. Não subir ainda.
+#
+# Topologia de rede (fiel ao diagrama do case):
+#   - wg-gateway conecta-se às 3 redes e é o ÚNICO roteador entre elas
+#     (nftables default-deny no FORWARD). Redes 'internal: true' NÃO têm
+#     rota pra internet nem entre si sem passar pelo gateway.
+#   - Cada segmento é uma rede docker isolada /24.
+#
+# NOTA: a isolação real vem do nftables no gateway (Stage 1), não só das
+# redes docker. Docker por padrão permite forward entre redes — por isso
+# o container-roteador existe. Ver specs/01-architecture.md.
+
+networks:
+  dmz:
+    name: lab_dmz
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.10.0/24
+  app:
+    name: lab_app
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.20.0/24
+  db:
+    name: lab_db
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.30.0/24
+
+services: {}
+  # Preenchido nas próximas stages:
+  #   wg-gateway  (Stage 1/2) — NET_ADMIN, nas 3 redes, nftables + WireGuard
+  #   waf         (Stage 4)   — Nginx + ModSecurity + CRS, na dmz
+  #   dvwa        (Stage 3)   — alvo vulnerável, na dmz
+  #   app-api     (Stage 3)   — pivô lateral, na app
+  #   postgres    (Stage 3)   — dados sensíveis, na db

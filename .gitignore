@@ -1,0 +1,31 @@
+# --- Segredos / chaves (NUNCA commitar) ---
+gateway/wireguard/*.key
+gateway/wireguard/*_private*
+gateway/wireguard/privatekey*
+*.pem
+*.p12
+.env
+.env.*
+!.env.example
+
+# --- Evidência pesada (mantém estrutura, ignora binário grande) ---
+evidence/**/*.pcap
+evidence/**/*.pcapng
+evidence/**/*.zip
+# prints/logs de texto ficam versionados (são a prova do case)
+
+# --- Runtime / build ---
+__pycache__/
+*.pyc
+*.log
+!evidence/**/*.log
+node_modules/
+data/
+postgres-data/
+
+# --- SO / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
