@@ -90,8 +90,83 @@ services:
       db:
         ipv4_address: 172.30.30.254
 
-  # Próximas stages:
-  #   waf      (Stage 4) — Nginx + ModSecurity + CRS, na dmz
-  #   dvwa     (Stage 3) — alvo vulnerável, na dmz
-  #   app-api  (Stage 3) — pivô lateral, na app
-  #   postgres (Stage 3) — dados sensíveis, na db
+  # === postgres (Stage 3) — DB fechado, dados sensíveis. Só a APP alcança (F2). ===
+  postgres:
+    build: ./targets/postgres   # postgres:16 + auto-rota no entrypoint (sobrevive a restart)
+    image: lab-postgres
+    container_name: postgres
+    cap_add:
+      - NET_ADMIN               # pro entrypoint injetar a rota default
+    environment:
+      POSTGRES_USER: appuser
+      # Senha vem do .env (gitignored) — NÃO commitada. gen-keys.sh gera se faltar.
+      # VULN-3 (cred estática, alvo do pivô) segue existindo; só não está no git.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env (rode scripts/gen-keys.sh)}
+      POSTGRES_DB: labdb
+    volumes:
+      - ./targets/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      db:
+        ipv4_address: 172.30.30.10
+    # SEM 'ports': o banco NUNCA é exposto ao host (regra do jogo).
+
+  # === app-api (Stage 3) — pivô lateral. Guarda a cred do DB. Só a DMZ alcança (F1). ===
+  app-api:
+    build: ./targets/app-api
+    image: lab-app-api
+    container_name: app-api
+    cap_add:
+      - NET_ADMIN            # pro entrypoint injetar a rota default
+    environment:
+      DB_HOST: 172.30.30.10  # IP do postgres (segmentos diferentes = usa IP, roteia pelo gateway)
+      DB_PORT: "5432"
+      DB_USER: appuser
+      DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env (rode scripts/gen-keys.sh)}
+      DB_NAME: labdb
+    networks:
+      app:
+        ipv4_address: 172.30.20.10
+    depends_on:
+      - postgres
+
+  # === dvwa (Stage 3) — alvo vulnerável na DMZ. Fica atrás do WAF (Stage 4). ===
+  # Não precisa de rota extra: só conversa com o WAF, que é do mesmo segmento (DMZ).
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: dvwa
+    networks:
+      dmz:
+        ipv4_address: 172.30.10.10
+    # SEM 'ports': acesso só via WAF/gateway (VPN). Nunca direto do host.
+
+  # === waf (Stage 4) — Nginx + ModSecurity + OWASP CRS na frente do DVWA ===
+  # Stage 4: DetectionOnly (loga, não bloqueia). Stage 7: vira On (bloqueia 403).
+  waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: waf
+    environment:
+      MODSEC_RULE_ENGINE: DetectionOnly   # detecta+loga, NÃO bloqueia (Stage 4)
+      PARANOIA: "1"                        # nível 1: pega o óbvio, pouco falso-positivo
+      BACKEND: "http://dvwa:80"            # reverse proxy pro DVWA (mesmo segmento DMZ)
+      PORT: "8080"                         # WAF roda sem privilégio -> porta >1024
+      MODSEC_AUDIT_ENGINE: RelevantOnly    # audita só request "interessante" (ataque)
+      MODSEC_AUDIT_LOG_FORMAT: JSON        # log de auditoria em JSON (fácil de ler)
+    networks:
+      dmz:
+        ipv4_address: 172.30.10.5
+    depends_on:
+      - dvwa
+
+  # Sidecar de rota do WAF: a imagem roda como usuário 'nginx' (não-root), então
+  # não pode mexer em rota. Este container compartilha o netns do WAF (root +
+  # NET_ADMIN) e injeta a rota default via o gateway da DMZ, pro WAF responder
+  # ao cliente VPN. restart: unless-stopped => re-injeta se o WAF reiniciar.
+  waf-route:
+    image: lab-gateway
+    network_mode: "service:waf"
+    cap_add:
+      - NET_ADMIN
+    entrypoint: ["/bin/sh","-c","ip route replace default via 172.30.10.254 && echo '[route] waf default via 172.30.10.254' && sleep infinity"]
+    depends_on:
+      - waf
+    restart: unless-stopped

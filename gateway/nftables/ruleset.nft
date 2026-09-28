@@ -42,6 +42,10 @@ table inet filter {
         # F2: APP(app-api) -> DB(postgres), só a porta do banco.
         ip saddr 172.30.20.0/24 ip daddr 172.30.30.0/24 tcp dport 5432 ct state new counter accept comment "F2: APP(app-api) -> DB(postgres) :5432"
 
+        # F-VPN: admin/atacante via VPN -> WAF:8080 (acesso web ao alvo, VPN-gated).
+        # Único caminho de entrada web: só o WAF, só a porta dele. DVWA nunca direto.
+        ip saddr 10.13.13.0/24 ip daddr 172.30.10.5 tcp dport 8080 ct state new counter accept comment "F-VPN: VPN -> WAF:8080"
+
         limit rate 5/minute log prefix "nft-forward-drop: " comment "amostra do que cai"
         counter drop comment "forward default-drop (contado p/ diagnóstico)"
     }

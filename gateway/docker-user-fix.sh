@@ -13,13 +13,16 @@
 # Idempotente: usa -C antes de -I pra não duplicar a cada 'up'.
 set -e
 
-LAB=172.30.0.0/16
+LAB=172.30.0.0/16      # os 3 segmentos do lab
+VPN=10.13.13.0/24      # sub-rede da VPN (acesso admin/atacante via túnel)
 
 for IPT in iptables-legacy iptables-nft iptables; do
     if "$IPT" -S DOCKER-USER >/dev/null 2>&1; then
-        "$IPT" -C DOCKER-USER -s "$LAB" -d "$LAB" -j ACCEPT 2>/dev/null \
-            || "$IPT" -I DOCKER-USER -s "$LAB" -d "$LAB" -j ACCEPT
-        echo "[docker-user-fix] regra garantida via $IPT (lab $LAB)"
+        add() { "$IPT" -C DOCKER-USER "$@" 2>/dev/null || "$IPT" -I DOCKER-USER "$@"; }
+        add -s "$LAB" -d "$LAB" -j ACCEPT   # inter-segmento (F1/F2/etc.)
+        add -s "$VPN" -d "$LAB" -j ACCEPT   # VPN -> segmentos (acesso via túnel)
+        add -s "$LAB" -d "$VPN" -j ACCEPT   # retorno segmentos -> VPN
+        echo "[docker-user-fix] regras garantidas via $IPT (lab $LAB, vpn $VPN)"
         exit 0
     fi
 done

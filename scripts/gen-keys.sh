@@ -40,7 +40,8 @@ Address = 10.13.13.2/32
 [Peer]
 PublicKey = $(cat "$WG/server_public.key")
 Endpoint = $ENDPOINT
-AllowedIPs = 10.13.13.0/24
+# 10.13.13.0/24 = rede VPN (gateway); 172.30.10.0/24 = DMZ (acesso ao WAF via túnel).
+AllowedIPs = 10.13.13.0/24, 172.30.10.0/24
 PersistentKeepalive = 25
 EOF
 fi
@@ -50,5 +51,12 @@ if [ ! -f "$SSHD/admin_ed25519" ]; then
 fi
 cp "$SSHD/admin_ed25519.pub" "$SSHD/authorized_keys"
 chmod 600 "$WG"/*.key "$WG/client.conf" "$SSHD/admin_ed25519" 2>/dev/null || true
+
+# Senha do Postgres no .env (gitignored). Gera aleatória se ainda não existir.
+if [ ! -f .env ] || ! grep -q '^DB_PASSWORD=' .env 2>/dev/null; then
+    PW=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)
+    printf 'DB_PASSWORD=%s\n' "$PW" >> .env
+    echo "[keys] DB_PASSWORD gerado em .env"
+fi
 
 echo "[keys] ok. Segredos em $WG e $SSHD (gitignored). Importe $WG/client.conf no cliente WireGuard."
