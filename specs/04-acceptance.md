@@ -67,10 +67,13 @@
 - [ ] Tabela: host, porta, protocolo, quem acessa, justificativa.
 - [ ] Caminho que deveria ser bloqueado, bloqueado (DMZ→DB). `evidence/stage09/`.
 
-## Stage 10 — README + bônus
+## Stage 10 — README + bônus + deploy
 - [ ] README com todas as seções obrigatórias do case.
 - [ ] `make up` reproduz o lab do zero.
-- [ ] Bônus priorizados por custo/impacto (o que der tempo).
+- [ ] Bônus priorizados por custo/impacto — ver `05-bonus-and-deploy.md`
+      (alvo: Suricata, script único, kill-chain map, cloud mapping, fail2ban).
+- [ ] (Opcional) deploy explorável gated: nenhum serviço vulnerável sem gate;
+      DB/webshell nunca públicos (confirma com nmap externo); teardown documentado.
 
 ## Definição de "pronto" global (o que a banca vê)
 - Um comando sobe tudo. Evidência em `/evidence`. README completo.

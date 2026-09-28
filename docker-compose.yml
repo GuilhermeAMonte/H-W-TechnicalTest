@@ -31,10 +31,50 @@ networks:
       config:
         - subnet: 172.30.30.0/24
 
-services: {}
-  # Preenchido nas próximas stages:
-  #   wg-gateway  (Stage 1/2) — NET_ADMIN, nas 3 redes, nftables + WireGuard
-  #   waf         (Stage 4)   — Nginx + ModSecurity + CRS, na dmz
-  #   dvwa        (Stage 3)   — alvo vulnerável, na dmz
-  #   app-api     (Stage 3)   — pivô lateral, na app
-  #   postgres    (Stage 3)   — dados sensíveis, na db
+services:
+  # === netfix — libera o trânsito inter-lab na camada do Docker (host netns) ===
+  # O firewall do próprio Docker derruba o forward inter-segmento antes de chegar no
+  # wg-gateway. Este one-shot insere um ACCEPT em DOCKER-USER só pro range do lab;
+  # o filtro fino (F1/F2/default-deny) continua sendo do nftables no wg-gateway.
+  netfix:
+    image: lab-gateway
+    build: ./gateway
+    network_mode: host          # entra no netns do host (a VM do Docker Desktop)
+    cap_add:
+      - NET_ADMIN
+    privileged: true            # necessário pra mexer no iptables do host
+    volumes:
+      - ./gateway/docker-user-fix.sh:/docker-user-fix.sh:ro
+    entrypoint: ["/bin/sh", "/docker-user-fix.sh"]
+    restart: "no"
+
+  # === wg-gateway (Stage 1/2) — roteador + firewall + entrada VPN ===
+  wg-gateway:
+    build: ./gateway
+    image: lab-gateway
+    container_name: wg-gateway
+    hostname: wg-gateway
+    # NET_ADMIN: permite ao container escrever regras nftables no netfilter do kernel.
+    cap_add:
+      - NET_ADMIN
+    # ip_forward=1: habilita o kernel a ROTEAR pacotes entre as 3 redes.
+    # Sem isso, pacote de uma rede pra outra é descartado (container não encaminha).
+    sysctls:
+      - net.ipv4.ip_forward=1
+    # Bind-mount do ruleset nftables (edita a regra sem rebuildar a imagem).
+    volumes:
+      - ./gateway/nftables:/etc/nftables:ro
+    # Multi-homed: IP fixo .254 em cada segmento. É o roteador de cada rede.
+    networks:
+      dmz:
+        ipv4_address: 172.30.10.254
+      app:
+        ipv4_address: 172.30.20.254
+      db:
+        ipv4_address: 172.30.30.254
+
+  # Próximas stages:
+  #   waf      (Stage 4) — Nginx + ModSecurity + CRS, na dmz
+  #   dvwa     (Stage 3) — alvo vulnerável, na dmz
+  #   app-api  (Stage 3) — pivô lateral, na app
+  #   postgres (Stage 3) — dados sensíveis, na db

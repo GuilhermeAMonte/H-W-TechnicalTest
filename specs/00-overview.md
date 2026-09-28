@@ -49,10 +49,28 @@ Cada elo tem mitigação clara na Parte 5 (ver `03-attack-chain.md`).
 - **Ofensivo (Stages 5,6,7,8)** = COPILOTO: candidato pilota, revisão de payload/CVSS.
 - Evidência religiosa em `evidence/stageNN/` (comando + saída, prints, pcap, logs).
 
+## Bônus (agora no escopo — ver `05-bonus-and-deploy.md`)
+
+Priorizados por custo/impacto pro prazo 4–5 dias. Ordem de ataque:
+1. Suricata/Zeek detectando a própria cadeia (alto impacto, casa com evidência).
+2. Script único que automatiza a cadeia de ponta a ponta.
+3. Mapa da kill chain versionado + discussão de mapeamento pra nuvem real.
+4. fail2ban/rate-limiting na borda; logs centralizados com alerta.
+5. Escalada de privilégio no host comprometido.
+6. IaC (Terraform/Ansible) — se sobrar tempo.
+
+## Deploy explorável (Stage 10 — opcional)
+
+Objetivo: entregar site explorável pra banca **sem** expor RCE cru na internet.
+Padrão escolhido: **VPN-gated** (só `51820/udp` público; banca explora via peer
+WireGuard). Alternativas: túnel efêmero com auth+allowlist, ou VPS gated.
+Detalhe + risco em `05-bonus-and-deploy.md`. Não cria conta/credencial: o
+candidato pilota hosting/DNS.
+
 ## Fora de escopo
 
-- Reproduzir nuvem real (só discussão de mapeamento no README).
-- Bônus (Suricata, IaC, priv-esc) só se sobrar tempo. Prazo: 4–5 dias.
+- Reproduzir a nuvem inteira (só discussão de mapeamento no README).
+- Prazo: 4–5 dias — bônus abaixo da linha de corte ficam documentados como "faria".
 
 ## Nota de segurança do código (app-api)
 

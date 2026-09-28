@@ -1,0 +1,45 @@
+#!/usr/sbin/nft -f
+# gateway/nftables/ruleset.nft — Firewall do wg-gateway.
+# Stage 1: base default-deny (INPUT + FORWARD). Liberações explícitas no Bloco 4.
+# 'nft -f' aplica de forma atômica: flush + recarrega tudo de uma vez.
+flush ruleset
+
+table inet filter {
+
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        ct state established,related accept  comment "respostas de conexões já abertas"
+        ct state invalid drop                comment "pacote fora de estado"
+        iif "lo" accept                      comment "loopback local"
+
+        # (Stage 2) WireGuard 51820/udp e SSH-via-VPN entram aqui.
+
+        limit rate 5/minute log prefix "nft-input-drop: "  comment "amostra do que caiu no INPUT"
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+
+        ct state established,related counter accept  comment "sentido de volta do fluxo já liberado"
+        ct state invalid counter drop
+
+        # Liberações inter-segmento — casadas por SUBNET (estável),
+        # NÃO por nome de interface ethN (docker não garante a ordem).
+        # Só o 1º pacote (ct state new) é julgado; o retorno volta por established.
+
+        # F1: DMZ(waf) -> APP(app-api), só a porta da aplicação.
+        ip saddr 172.30.10.0/24 ip daddr 172.30.20.0/24 tcp dport 8000 ct state new counter accept comment "F1: DMZ(waf) -> APP(app-api) :8000"
+
+        # F2: APP(app-api) -> DB(postgres), só a porta do banco.
+        ip saddr 172.30.20.0/24 ip daddr 172.30.30.0/24 tcp dport 5432 ct state new counter accept comment "F2: APP(app-api) -> DB(postgres) :5432"
+
+        limit rate 5/minute log prefix "nft-forward-drop: " comment "amostra do que cai"
+        counter drop comment "forward default-drop (contado p/ diagnóstico)"
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+        # Egress do próprio gateway liberado. Hardening de saída = Parte 5.
+    }
+}
