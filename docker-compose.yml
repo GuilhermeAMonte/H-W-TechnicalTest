@@ -156,10 +156,11 @@ services:
   # === waf (Stage 4) — Nginx + ModSecurity + OWASP CRS na frente do DVWA ===
   # Stage 4: DetectionOnly (loga, não bloqueia). Stage 7: vira On (bloqueia 403).
   waf:
-    image: owasp/modsecurity-crs:nginx
+    build: ./waf                        # owasp/modsecurity-crs + CSP no cors.conf (Stage 7 fix)
+    image: lab-waf
     container_name: waf
     environment:
-      MODSEC_RULE_ENGINE: DetectionOnly   # detecta+loga, NÃO bloqueia (Stage 4)
+      MODSEC_RULE_ENGINE: On              # BLOQUEIA (403) — Stage 7 (era DetectionOnly na Stage 4)
       PARANOIA: "1"                        # nível 1: pega o óbvio, pouco falso-positivo
       BACKEND: "http://dvwa:80"            # reverse proxy pro DVWA (mesmo segmento DMZ)
       PORT: "8080"                         # WAF roda sem privilégio -> porta >1024
