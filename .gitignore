@@ -2,6 +2,10 @@
 gateway/wireguard/*.key
 gateway/wireguard/*_private*
 gateway/wireguard/privatekey*
+gateway/wireguard/*.conf
+!gateway/wireguard/*.conf.template
+# Chave privada do admin SSH (a .pub e authorized_keys podem ir pro git)
+gateway/ssh/*_ed25519
 *.pem
 *.p12
 .env

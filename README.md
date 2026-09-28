@@ -24,16 +24,30 @@ ciclo completo: **atacar → entender → conter**, com evidência em cada passo
 
 ## Como rodar
 
+Pré-requisitos: Docker + docker compose; cliente [WireGuard](https://www.wireguard.com/install/)
+para o acesso admin; `ssh` (OpenSSH). Os segredos (chaves WireGuard/SSH) **não** vão no
+git — são gerados localmente no primeiro `up`.
+
+**Com `make`** (Linux/mac/WSL):
 ```bash
-make up      # sobe o lab inteiro
+make up      # gera segredos se faltarem + sobe o lab inteiro
 make ps      # estado dos containers
 make down    # derruba (mantém dados)
 make nuke    # derruba + apaga volumes
 ```
 
-Pré-requisitos: Docker + docker compose. Cliente WireGuard para o acesso admin (Stage 2).
+**Sem `make`** (Windows/PowerShell):
+```bash
+bash scripts/gen-keys.sh          # gera chaves WireGuard + SSH admin (idempotente)
+docker compose up -d --build      # sobe o lab
+```
 
-_(Instruções completas de reprodução de ataques/bloqueios/contenção: a preencher.)_
+### Acesso admin (VPN + SSH por chave)
+1. Importe `gateway/wireguard/client.conf` no app WireGuard e **Ative**.
+2. `ssh -i gateway/ssh/admin_ed25519 root@10.13.13.1` (login só por chave; senha desabilitada).
+   Sem o túnel, o SSH é negado pelo firewall (admin só via VPN).
+
+_(Reprodução de ataques/bloqueios/contenção: a preencher nas próximas stages.)_
 
 ---
 

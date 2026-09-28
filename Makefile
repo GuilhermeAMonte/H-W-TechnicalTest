@@ -7,13 +7,16 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down restart ps logs nuke evidence
+.PHONY: help up down restart ps logs nuke evidence keys
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-up: ## Sobe o lab inteiro (gateway, waf, dvwa, app-api, postgres)
+keys: ## Gera segredos (WireGuard + SSH admin) se não existirem
+	@bash scripts/gen-keys.sh
+
+up: keys ## Sobe o lab inteiro (gera chaves antes, se faltarem)
 	$(COMPOSE) up -d --build
 	@echo ">> lab no ar. 'make ps' pra ver o estado."
 

@@ -12,6 +12,13 @@
 # o container-roteador existe. Ver specs/01-architecture.md.
 
 networks:
+  # Rede de BORDA (não-internal): interface "internet-facing" do gateway.
+  # Só por aqui entra a VPN (51820/udp publicado). Os segmentos NÃO tocam nela.
+  edge:
+    name: lab_edge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
   dmz:
     name: lab_dmz
     internal: true
@@ -61,11 +68,21 @@ services:
     # Sem isso, pacote de uma rede pra outra é descartado (container não encaminha).
     sysctls:
       - net.ipv4.ip_forward=1
-    # Bind-mount do ruleset nftables (edita a regra sem rebuildar a imagem).
+    # Porta do WireGuard publicada no host (entrada da VPN vinda da internet/LAN).
+    ports:
+      - "51820:51820/udp"
+    # /dev/net/tun necessário pro wg-quick criar a interface do túnel.
+    devices:
+      - /dev/net/tun
+    # Bind-mounts: ruleset nftables + chaves/template do WireGuard.
     volumes:
       - ./gateway/nftables:/etc/nftables:ro
-    # Multi-homed: IP fixo .254 em cada segmento. É o roteador de cada rede.
+      - ./gateway/wireguard:/etc/wireguard-src:ro
+      - ./gateway/ssh:/etc/gateway-ssh:ro
+    # Multi-homed: borda (edge) + IP fixo .254 em cada segmento.
     networks:
+      edge:
+        ipv4_address: 172.31.0.2
       dmz:
         ipv4_address: 172.30.10.254
       app:

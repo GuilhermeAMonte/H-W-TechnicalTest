@@ -13,7 +13,15 @@ table inet filter {
         ct state invalid drop                comment "pacote fora de estado"
         iif "lo" accept                      comment "loopback local"
 
-        # (Stage 2) WireGuard 51820/udp e SSH-via-VPN entram aqui.
+        # I1: WireGuard — aceita o handshake/tráfego do túnel (entrada da VPN).
+        udp dport 51820 accept               comment "I1: WireGuard 51820/udp"
+
+        # I2: Admin SSH só a partir da sub-rede da VPN. Sem túnel a origem NÃO é
+        # 10.13.13.0/24 → cai no default-deny (I3 implícito) = negado.
+        ip saddr 10.13.13.0/24 tcp dport 22 accept  comment "I2: SSH admin só via VPN"
+
+        # ICMP echo só da VPN — deixa o admin dar 'ping 10.13.13.1' pra sanity check.
+        ip saddr 10.13.13.0/24 icmp type echo-request accept  comment "ping admin via VPN"
 
         limit rate 5/minute log prefix "nft-input-drop: "  comment "amostra do que caiu no INPUT"
     }

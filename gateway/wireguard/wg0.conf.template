@@ -1,0 +1,17 @@
+# wg0.conf.template — config do servidor WireGuard no wg-gateway.
+# Os __PLACEHOLDERS__ são substituídos no boot pelo entrypoint, lendo os arquivos
+# *.key (que NÃO vão pro git). Assim nenhuma chave privada é versionada.
+
+[Interface]
+# IP do gateway dentro do túnel + tamanho da rede VPN.
+Address = 10.13.13.1/24
+# Porta UDP onde o WireGuard escuta (única exposta na borda).
+ListenPort = 51820
+# Chave privada do servidor (injetada de server_private.key no boot).
+PrivateKey = __SERVER_PRIVATE__
+
+[Peer]
+# Teu notebook (o cliente admin).
+PublicKey = __PEER_PUBLIC__
+# Só o IP do cliente: rota "por aqui se fala com ele" + filtro "só aceito esse IP".
+AllowedIPs = 10.13.13.2/32
