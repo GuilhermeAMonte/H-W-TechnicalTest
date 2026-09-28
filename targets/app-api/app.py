@@ -8,11 +8,16 @@ EXCEÇÃO PROPOSITAL: /internal/db-config vaza a credencial do banco SEM auth �
 é o elo do pivô lateral que o teste exige (VULN-1). Ver specs/03-attack-chain.md.
 """
 import os
+import re
+import subprocess
 from flask import Flask, jsonify, abort, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
+
+# HARDENED=1 (Stage 8) fecha as vulns intencionais. Default 0 = estado da Stage 6.
+HARDENED = os.environ.get("HARDENED", "0") == "1"
 
 # Credenciais do banco vêm do ambiente (a app "guarda" a cred do DB).
 DB = dict(
@@ -61,6 +66,9 @@ def product(pid):
 # ============================================================================
 @app.get("/internal/db-config")
 def db_config():
+    if HARDENED:
+        # Stage 8: endpoint de debug REMOVIDO (reduz superfície). Não vaza cred.
+        abort(404)
     return jsonify(
         db_host=DB["host"],
         db_port=DB["port"],
@@ -82,6 +90,15 @@ def db_config():
 @app.get("/internal/net-check")
 def net_check():
     host = request.args.get("host", "127.0.0.1")
+    if HARDENED:
+        # Stage 8: allowlist estrita (só IP/hostname válido, sem metacaracteres de
+        # shell) + subprocess SEM shell (lista de args). Fecha o command injection.
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,253}", host):
+            abort(400)
+        out = subprocess.run(["ping", "-c", "1", "-W", "1", host],
+                             capture_output=True, text=True, timeout=5).stdout
+        return jsonify(output=out)
+    # Estado Stage 6 (vulnerável): concatena no shell.
     out = os.popen("ping -c 1 -W 1 " + host).read()
     return jsonify(cmd="ping -c 1 -W 1 " + host, output=out)
 

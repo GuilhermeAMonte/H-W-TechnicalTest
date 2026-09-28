@@ -123,6 +123,7 @@ services:
       DB_USER: appuser
       DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env (rode scripts/gen-keys.sh)}
       DB_NAME: labdb
+      HARDENED: "1"          # Stage 8: fecha as vulns intencionais (db-config/net-check)
     networks:
       app:
         ipv4_address: 172.30.20.10
