@@ -73,6 +73,7 @@
 
 | ID | Onde | Descrição | Removida em |
 |---|---|---|---|
-| VULN-1 | app-api | endpoint sem-auth vaza cred DB | Parte 5 / Elo 4 |
+| VULN-1 | app-api | endpoint `/internal/db-config` sem-auth vaza cred DB | Parte 5 / Elo 3 |
 | VULN-2 | dvwa | app deliberadamente vulnerável (SQLi/XSS/upload) | mitigado por WAF, não removido |
-| VULN-3 | postgres | cred estática + role sem least-privilege | Parte 5 / Elo 5 |
+| VULN-3 | postgres | cred estática + role sem least-privilege (appuser superuser) | Parte 5 / Elo 5 |
+| VULN-4 | app-api | `/internal/net-check` command injection (RCE na APP) — pivô p/ reusar a cred no DB | Parte 5 / Elo 5 |

@@ -8,7 +8,7 @@ EXCEÇÃO PROPOSITAL: /internal/db-config vaza a credencial do banco SEM auth �
 é o elo do pivô lateral que o teste exige (VULN-1). Ver specs/03-attack-chain.md.
 """
 import os
-from flask import Flask, jsonify, abort
+from flask import Flask, jsonify, abort, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -68,6 +68,22 @@ def db_config():
         db_user=DB["user"],
         db_password=DB["password"],
     )
+
+
+# ============================================================================
+# VULN-INTENCIONAL (VULN-4) — Command Injection num "diagnóstico de rede" interno.
+# Endpoint sem auth (ferramenta interna) que roda um ping com o host informado,
+# CONCATENANDO o input direto no shell. É o elo que dá EXECUÇÃO DE COMANDO na
+# camada APP: o atacante com foothold na DMZ chama este endpoint (via F1), ganha
+# shell na app-api e, DA APP, usa a credencial roubada com o cliente psql para
+# alcançar o Postgres (via F2) e exfiltrar. Mitigação (validar/parametrizar,
+# remover exec de shell): Stage 8.
+# ============================================================================
+@app.get("/internal/net-check")
+def net_check():
+    host = request.args.get("host", "127.0.0.1")
+    out = os.popen("ping -c 1 -W 1 " + host).read()
+    return jsonify(cmd="ping -c 1 -W 1 " + host, output=out)
 
 
 @app.errorhandler(500)

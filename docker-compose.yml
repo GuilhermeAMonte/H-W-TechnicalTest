@@ -130,7 +130,6 @@ services:
       - postgres
 
   # === dvwa (Stage 3) — alvo vulnerável na DMZ. Fica atrás do WAF (Stage 4). ===
-  # Não precisa de rota extra: só conversa com o WAF, que é do mesmo segmento (DMZ).
   dvwa:
     image: vulnerables/web-dvwa:latest
     container_name: dvwa
@@ -138,6 +137,21 @@ services:
       dmz:
         ipv4_address: 172.30.10.10
     # SEM 'ports': acesso só via WAF/gateway (VPN). Nunca direto do host.
+
+  # Sidecar de rota do DVWA: dá ao host comprometido um GATEWAY PADRÃO (172.30.10.254),
+  # como qualquer máquina real tem. Sem isso o container nem consegue TENTAR alcançar
+  # outros segmentos ("Network is unreachable"), e a segmentação passaria a depender de
+  # "ausência de rota" (frágil/acidental) em vez do firewall. Com a rota, quem decide o
+  # movimento lateral DMZ->APP é a regra F1 (decisão explícita), não um acidente de config.
+  dvwa-route:
+    image: lab-gateway
+    network_mode: "service:dvwa"
+    cap_add:
+      - NET_ADMIN
+    entrypoint: ["/bin/sh","-c","ip route replace default via 172.30.10.254 && echo '[route] dvwa default via 172.30.10.254' && sleep infinity"]
+    depends_on:
+      - dvwa
+    restart: unless-stopped
 
   # === waf (Stage 4) — Nginx + ModSecurity + OWASP CRS na frente do DVWA ===
   # Stage 4: DetectionOnly (loga, não bloqueia). Stage 7: vira On (bloqueia 403).
