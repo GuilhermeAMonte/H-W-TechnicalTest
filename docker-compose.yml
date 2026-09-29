@@ -123,7 +123,9 @@ services:
       DB_USER: appuser
       DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env (rode scripts/gen-keys.sh)}
       DB_NAME: labdb
-      HARDENED: "1"          # Stage 8: fecha as vulns intencionais (db-config/net-check)
+      # 0 (padrão) = vulns intencionais ativas (reproduz a cadeia). 1 = fecha
+      # db-config/net-check. Vire com APP_HARDENED=1 no .env. Ver README.
+      HARDENED: ${APP_HARDENED:-0}
     networks:
       app:
         ipv4_address: 172.30.20.10
@@ -161,7 +163,9 @@ services:
     image: lab-waf
     container_name: waf
     environment:
-      MODSEC_RULE_ENGINE: On              # BLOQUEIA (403) — Stage 7 (era DetectionOnly na Stage 4)
+      # DetectionOnly (padrão) = detecta e loga, deixa passar (permite reproduzir ataques).
+      # On = bloqueia (403). Vire com WAF_MODE=On no .env. Ver README.
+      MODSEC_RULE_ENGINE: ${WAF_MODE:-DetectionOnly}
       PARANOIA: "1"                        # nível 1: pega o óbvio, pouco falso-positivo
       BACKEND: "http://dvwa:80"            # reverse proxy pro DVWA (mesmo segmento DMZ)
       PORT: "8080"                         # WAF roda sem privilégio -> porta >1024

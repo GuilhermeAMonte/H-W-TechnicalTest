@@ -36,10 +36,12 @@ table inet filter {
         # NÃO por nome de interface ethN (docker não garante a ordem).
         # Só o 1º pacote (ct state new) é julgado; o retorno volta por established.
 
-        # F1 (HARDENED - Stage 8): SÓ o WAF (172.30.10.5) fala com a app-api, não a
-        # DMZ inteira. Contém o movimento lateral: o DVWA comprometido (172.30.10.10)
-        # perde o caminho pra APP. Antes: ip saddr 172.30.10.0/24 (subnet toda).
-        ip saddr 172.30.10.5 ip daddr 172.30.20.10 tcp dport 8000 ct state new counter accept comment "F1: WAF -> app-api :8000 (só o WAF)"
+        # F1: DMZ -> APP (app-api), só a porta da aplicação.
+        # Estado padrão (attack-ready): aceita a subnet DMZ inteira — permite o
+        # movimento lateral do foothold. HARDENING (ver README): restringir a origem
+        # ao IP do WAF (172.30.10.5) contém o pivô do host comprometido:
+        #   ip saddr 172.30.10.5 ip daddr 172.30.20.10 tcp dport 8000 ct state new accept
+        ip saddr 172.30.10.0/24 ip daddr 172.30.20.0/24 tcp dport 8000 ct state new counter accept comment "F1: DMZ -> APP(app-api) :8000"
 
         # F2: APP(app-api) -> DB(postgres), só a porta do banco.
         ip saddr 172.30.20.0/24 ip daddr 172.30.30.0/24 tcp dport 5432 ct state new counter accept comment "F2: APP(app-api) -> DB(postgres) :5432"
